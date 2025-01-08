@@ -1,48 +1,45 @@
-import { createContext, useState, useContext, useEffect } from 'react'
+import { createContext, useState, useEffect } from 'react'
 
 const appContext = createContext()
 
+let state
+let reducer
+const listeners = []
+
+const middlewareFns = []
+
+let currentAction = {
+  type: '',
+  payload: null,
+}
+
+const setState = newState => {
+  state = newState
+  listeners.forEach(fn => fn())
+}
 // 创建一个store
 const store = {
-  // state: {
-  //   user: { name: 'lzt', age: 26 },
-  // },
-
-  state: undefined,
-  reducer: undefined,
-  setState(newState) {
-    store.state = newState
-    store.listeners.forEach(fn => fn())
+  getState() {
+    return state
   },
 
-  listeners: [], // 订阅者
+  dispatch(action) {
+    setState(reducer(state, action))
+    currentAction = action
+
+    return action
+  },
 
   subscribe(fn) {
     // 订阅
-    store.listeners.push(fn)
+    listeners.push(fn)
     return () => {
       // 取消订阅
-      const index = store.listeners.indexOf(fn)
-      store.listeners.splice(index, 1)
+      const index = listeners.indexOf(fn)
+      listeners.splice(index, 1)
     }
   },
 }
-
-// 规范化的创建新的state 需要一个reducer函数
-// const reducer = (state, { type, payload }) => {
-//   switch (type) {
-//     case 'updateUser':
-//       return {
-//         ...state,
-//         user: {
-//           ...state.user,
-//           ...payload,
-//         },
-//       }
-//     default:
-//       return state
-//   }
-// }
 
 // 判断两个对象是否有变化
 const changed = (newObj, oldObj) => {
@@ -57,21 +54,14 @@ const changed = (newObj, oldObj) => {
 // connect 本质就是一个创建 中间wrapper组件的函数 调用该函数 返回一个中间组件 中间组件里面可以使用useContext
 export const connect = (mapStateToProps, mapDispatchToProps) => Component => {
   const Wrapper = props => {
-    const dispatch = action => {
-      setState(store.reducer(state, action))
-      update({})
-    }
-
-    const { state, setState } = useContext(appContext)
-
     const data = typeof mapStateToProps === 'function' ? mapStateToProps(state) : { state }
-    const dispatchs = typeof mapDispatchToProps === 'function' ? mapDispatchToProps(dispatch) : { dispatch }
+    const dispatchs = typeof mapDispatchToProps === 'function' ? mapDispatchToProps(store.dispatch) : { dispatch: store.dispatch }
 
     const [, update] = useState({})
 
     useEffect(() => {
       const unsubscribe = store.subscribe(() => {
-        const newData = typeof mapStateToProps === 'function' ? mapStateToProps(store.state) : { state: store.state }
+        const newData = typeof mapStateToProps === 'function' ? mapStateToProps(state) : { state }
         if (changed(newData, data)) {
           update({})
         }
@@ -82,19 +72,38 @@ export const connect = (mapStateToProps, mapDispatchToProps) => Component => {
       }
     }, [])
 
-    return <Component {...data} {...props} {...dispatchs} />
+    return <Component {...props} {...data} {...dispatchs} />
   }
 
   return Wrapper
 }
 
-export const createStore = (reducer, initialState) => {
-  store.state = initialState
-  store.reducer = reducer
-
+export const createStore = (initialreducer, initialState, applyMiddleware) => {
+  state = initialState
+  reducer = initialreducer
+  applyMiddleware()
   return store
 }
 
+// 封装Provider组件
 export const Provider = ({ store, children }) => {
   return <appContext.Provider value={store}> {children} </appContext.Provider>
+}
+
+// 注册中间件函数
+export const applyMiddleware = (...middlewares) => {
+  return () => {
+    const prevDispatch = store.dispatch
+
+    store.dispatch = action => {
+      prevDispatch(action)
+      middlewareFns.forEach(fn => {
+        fn(currentAction)
+      })
+      return action
+    }
+    middlewares.forEach(middleware => {
+      middlewareFns.push(middleware(store)(prevDispatch))
+    })
+  }
 }
