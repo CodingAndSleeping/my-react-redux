@@ -17,36 +17,17 @@ const reducer = (state, { type, payload }) => {
   }
 }
 
-function logger({ getState }) {
-  return next => action => {
-    console.log('will dispatch', action)
-
-    // Call the next dispatch method in the middleware chain.
-    const returnValue = next(action)
-
-    console.log('state after dispatch', getState())
-
-    // This will likely be the action itself, unless
-    // a middleware further in chain changed it.
-    return returnValue
-  }
-}
-
 const thunk =
   ({ dispatch, getState }) =>
   next =>
   action => {
-    // The thunk middleware looks for any functions that were passed to `store.dispatch`.
-    // If this "action" is really a function, call it and return the result.
     if (typeof action === 'function') {
-      // Inject the store's `dispatch` and `getState` methods, as well as any "extra arg"
       return action(dispatch, getState)
     }
 
-    // Otherwise, pass the action down the middleware chain as usual
     return next(action)
   }
-const store = createStore(reducer, { user: { name: 'lzt', age: 26 }, aaa: 'bbb' }, applyMiddleware(logger, thunk))
+const store = createStore(reducer, { user: { name: 'lzt', age: 26 }, aaa: 'bbb' }, applyMiddleware(thunk))
 
 const App = () => {
   // const [appState, setAppState] = useState({
@@ -120,10 +101,9 @@ const UserModifier = connect(null, dispatch => {
 
 const UserModifierAsync = connect()(({ dispatch }) => {
   const onClick = () => {
-    dispatch((dispatch, getState) => {
+    dispatch(dispatch => {
       setTimeout(() => {
         dispatch({ type: 'updateUser', payload: { name: 'newLzt' } })
-        console.log(getState())
       }, 1000)
     })
   }

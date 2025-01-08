@@ -1,37 +1,34 @@
 import { createContext, useState, useEffect } from 'react'
 
+// 创建一个上下文
 const appContext = createContext()
 
-let state
-let reducer
-const listeners = []
+let state // 创建一个初始的state
+let reducer // 创建一个初始的reducer
+const listeners = [] // 订阅者
 
-const middlewareFns = []
+const middlewareFns = [] // 中间件函数
 
-let currentAction = {
-  type: '',
-  payload: null,
-}
-
+// 创建一个修改state的函数 并执行订阅的回调函数
 const setState = newState => {
   state = newState
   listeners.forEach(fn => fn())
 }
 // 创建一个store
 const store = {
+  // 获取state
   getState() {
     return state
   },
 
+  // 发送action
   dispatch(action) {
     setState(reducer(state, action))
-    currentAction = action
-
     return action
   },
 
+  // 订阅
   subscribe(fn) {
-    // 订阅
     listeners.push(fn)
     return () => {
       // 取消订阅
@@ -98,7 +95,7 @@ export const applyMiddleware = (...middlewares) => {
     store.dispatch = action => {
       prevDispatch(action)
       middlewareFns.forEach(fn => {
-        fn(currentAction)
+        fn(action)
       })
       return action
     }
