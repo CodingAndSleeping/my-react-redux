@@ -48,7 +48,7 @@ const changed = (newObj, oldObj) => {
   return false
 }
 
-// connect 本质就是一个创建 中间wrapper组件的函数 调用该函数 返回一个中间组件 中间组件里面可以使用useContext
+// connect 本质就是一个创建 中间wrapper组件的函数 调用该函数 返回一个中间组件
 export const connect = (mapStateToProps, mapDispatchToProps) => Component => {
   const Wrapper = props => {
     const data = typeof mapStateToProps === 'function' ? mapStateToProps(state) : { state }
@@ -75,10 +75,11 @@ export const connect = (mapStateToProps, mapDispatchToProps) => Component => {
   return Wrapper
 }
 
-export const createStore = (initialreducer, initialState, applyMiddleware) => {
+// 创建store
+export const createStore = (initialreducer, initialState, enhancer) => {
   state = initialState
   reducer = initialreducer
-  applyMiddleware()
+  if (typeof enhancer === 'function') enhancer()
   return store
 }
 
